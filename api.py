@@ -6,35 +6,37 @@ from jose import jwt
 from pydantic import BaseModel
 from typing import List
 from datetime import date, datetime, timedelta
+import os
 
-# =======================
-# CONFIG
-# =======================
+# ======================================================
+# CONFIGURATION
+# ======================================================
 
 DATABASE_URL = (
-    "postgresql+psycopg2://maxime:ZOIFE0wuAB7kBBx9dqtkKS05ogx56GZk@"
-    "dpg-d7a05lfpm1nc73bp5h70-a.frankfurt-postgres.render.com:5432/"
-    "mouvement?sslmode=require"
+    f"postgresql+psycopg2://"
+    f"{os.environ['DB_USER']}:{os.environ['DB_PASSWORD']}"
+    f"@{os.environ['DB_HOST']}:{os.environ['DB_PORT']}"
+    f"/{os.environ['DB_NAME']}?sslmode=require"
 )
 
-SECRET_KEY = "SECRET_KEY"
+SECRET_KEY = "CHANGE_ME_SECRET_KEY"
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_MINUTES = 60
 
-# Identifiants simples pour le projet
+# Login simple (projet)
 FAKE_USER = {
-    "username": "maxime",
-    "password": "sbgé&e_gdé&_hsqdqs"
+    "username": "admin",
+    "password": "admin123"
 }
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 security = HTTPBearer()
 
-# =======================
-# MODELE SQLALCHEMY
-# =======================
+# ======================================================
+# MODELE SQLALCHEMY (BDD)
+# ======================================================
 
 class MouvementLogistique(Base):
     __tablename__ = "mouvement_logistique"
@@ -53,9 +55,9 @@ class MouvementLogistique(Base):
     delai_livraison = Column(Integer)
     retard = Column(Integer)
 
-# =======================
-# MODELES PYDANTIC
-# =======================
+# ======================================================
+# MODELES PYDANTIC (API)
+# ======================================================
 
 class LoginRequest(BaseModel):
     username: str
@@ -84,9 +86,9 @@ class MouvementLogistiqueOut(MouvementLogistiqueIn):
     class Config:
         from_attributes = True  # Pydantic v2
 
-# =======================
+# ======================================================
 # DEPENDANCES
-# =======================
+# ======================================================
 
 def get_db():
     db = SessionLocal()
@@ -111,17 +113,28 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
             detail="Token invalide ou expiré"
         )
 
-# =======================
-# API
-# =======================
+# ======================================================
+# APPLICATION
+# ======================================================
 
 app = FastAPI(
     title="API Logistique",
     version="1.0.0",
-    description="API REST sécurisée avec authentification par username/password"
+    description="API REST Logistique sécurisée (FastAPI + PostgreSQL + JWT)"
 )
 
-# --- Authentification ---
+# ======================================================
+# HEALTH CHECK (OBLIGATOIRE POUR RENDER)
+# ======================================================
+
+@app.get("/")
+def health():
+    return {"status": "API running"}
+
+# ======================================================
+# AUTHENTIFICATION
+# ======================================================
+
 @app.post("/api/auth/login", response_model=TokenResponse)
 def login(data: LoginRequest):
     if (
@@ -136,7 +149,10 @@ def login(data: LoginRequest):
     token = create_token(data.username)
     return {"access_token": token}
 
-# --- Endpoints métiers ---
+# ======================================================
+# ENDPOINTS METIER
+# ======================================================
+
 @app.get(
     "/api/mouvements",
     response_model=List[MouvementLogistiqueOut],

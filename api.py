@@ -25,8 +25,8 @@ TOKEN_EXPIRE_MINUTES = 60
 
 # Login simple (projet)
 FAKE_USER = {
-    "username": "admin",
-    "password": "admin123"
+    "username": "maxime",
+    "password": "sbgé&e_gdé&_hsqdqs"
 }
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
